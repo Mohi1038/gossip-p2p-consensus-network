@@ -1,4 +1,5 @@
 # seed_ip,seed_port
+# Quorum is computed as floor(n/2)+1 from the number of seed entries.
 127.0.0.1,5001
 127.0.0.1,5002
 127.0.0.1,5003
