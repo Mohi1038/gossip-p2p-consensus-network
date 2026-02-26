@@ -1,5 +1,7 @@
 # Gossip-Based P2P Network with Two-Level Consensus
 
+Last updated: 26 Feb 2026
+
 This project implements a gossip-based peer-to-peer (P2P) network with:
 
 - reliable message dissemination,
