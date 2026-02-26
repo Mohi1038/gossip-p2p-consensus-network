@@ -140,6 +140,39 @@ Sequence details highlighted:
 - **Commit/abort branching** is explicit for deterministic cluster state transitions.
 - **Duplicate late reports** after commit may validly abort with no additional state change.
 
+### Peer Join and Bootstrap Sequence (Detailed)
+
+```mermaid
+sequenceDiagram
+	autonumber
+	participant J as Joining Peer
+	participant S1 as Seed 1
+	participant S2 as Seed 2
+	participant S3 as Seed 3
+	participant P1 as Existing Peer
+
+	J->>S1: REGISTER_REQ(peer_ip, peer_port)
+	J->>S2: REGISTER_REQ(peer_ip, peer_port)
+	S1->>S2: REGISTER_VOTE(proposal)
+	S2->>S3: REGISTER_VOTE(proposal)
+	alt Seed quorum achieved
+		S1-->>J: REGISTER_COMMIT(success=true)
+		S2-->>J: REGISTER_COMMIT(success=true)
+		J->>S1: PEER_LIST_REQ
+		S1-->>J: PEER_LIST_RESP(peers)
+		J->>P1: HELLO(peer metadata)
+		P1-->>J: HELLO_ACK(accepted=true)
+	else Seed quorum failed
+		S1-->>J: REGISTER_COMMIT(success=false)
+	end
+```
+
+Join flow details highlighted:
+
+- **Quorum-first admission** ensures a peer is accepted only after majority seed agreement.
+- **Post-commit discovery** fetches current peer list for overlay construction.
+- **HELLO/HELLO_ACK handshake** finalizes neighbor connectivity before gossip starts.
+
 ---
 
 ## 2) Consensus Model
