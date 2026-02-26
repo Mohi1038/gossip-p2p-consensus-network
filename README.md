@@ -1,7 +1,5 @@
 # Gossip-Based P2P Network with Two-Level Consensus
 
-Last updated: 26 Feb 2026
-
 This project implements a gossip-based peer-to-peer (P2P) network with:
 
 - reliable message dissemination,
@@ -275,9 +273,6 @@ Messages are newline-delimited JSON over TCP sockets.
 - `peer.py` — peer bootstrap, gossip, liveness and peer consensus.
 - `config.txt` — list of seed `IP,PORT` entries.
 - `outputfile.txt` — consolidated runtime log output.
-- `TASK3_TESTING.md` — bootstrap/overlay testing.
-- `TASK4_TESTING.md` — gossip/de-dup testing.
-- `TASK5_TESTING.md` — liveness + two-level consensus testing.
 - `EXECUTION_PLAN.md` — one-day task-wise execution plan.
 
 ---
