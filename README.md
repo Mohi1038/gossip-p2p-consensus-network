@@ -37,35 +37,43 @@ The network has two node types:
 ```mermaid
 flowchart TB
 	%% Client peer attempting bootstrap
-	J[Joining Peer J]
+	J["Joining Peer J"]
 
-	subgraph S[Seed Layer (Membership Authority)]
-		S1[Seed 1\nPL + vote state]
-		S2[Seed 2\nPL + vote state]
-		S3[Seed 3\nPL + vote state]
-		S1 <-. REGISTER_VOTE / SEED_DEAD_VOTE .-> S2
-		S2 <-. REGISTER_VOTE / SEED_DEAD_VOTE .-> S3
-		S1 <-. REGISTER_VOTE / SEED_DEAD_VOTE .-> S3
+	subgraph S["Seed Layer - Membership Authority"]
+		S1["Seed 1<br/>PL + vote state"]
+		S2["Seed 2<br/>PL + vote state"]
+		S3["Seed 3<br/>PL + vote state"]
+		S1 -. "REGISTER_VOTE / SEED_DEAD_VOTE" .-> S2
+		S2 -. "REGISTER_VOTE / SEED_DEAD_VOTE" .-> S1
+		S2 -. "REGISTER_VOTE / SEED_DEAD_VOTE" .-> S3
+		S3 -. "REGISTER_VOTE / SEED_DEAD_VOTE" .-> S2
+		S1 -. "REGISTER_VOTE / SEED_DEAD_VOTE" .-> S3
+		S3 -. "REGISTER_VOTE / SEED_DEAD_VOTE" .-> S1
 	end
 
-	subgraph P[Peer Overlay Layer (Gossip Plane)]
-		P1[Peer A]
-		P2[Peer B]
-		P3[Peer C]
-		P4[Peer D]
-		P1 <--> P2
-		P2 <--> P3
-		P3 <--> P4
-		P4 <--> P1
-		P1 <--> P3
+	subgraph P["Peer Overlay Layer - Gossip Plane"]
+		P1["Peer A"]
+		P2["Peer B"]
+		P3["Peer C"]
+		P4["Peer D"]
+		P1 --> P2
+		P2 --> P1
+		P2 --> P3
+		P3 --> P2
+		P3 --> P4
+		P4 --> P3
+		P4 --> P1
+		P1 --> P4
+		P1 --> P3
+		P3 --> P1
 	end
 
 	%% Bootstrap + registration quorum
 	J -->|REGISTER_REQ| S1
 	J -->|REGISTER_REQ| S2
 	J -->|REGISTER_REQ| S3
-	S1 -->|REGISTER_COMMIT / ABORT| J
-	S2 -->|REGISTER_COMMIT / ABORT| J
+	S1 -->|REGISTER_COMMIT or ABORT| J
+	S2 -->|REGISTER_COMMIT or ABORT| J
 	J -->|PEER_LIST_REQ| S1
 	S1 -->|PEER_LIST_RESP| J
 	J -->|HELLO| P1
@@ -80,11 +88,11 @@ flowchart TB
 	%% Two-level dead-node handling
 	P2 -->|SUSPECT_REQ| P3
 	P3 -->|SUSPECT_ACK| P2
-	P2 -->|DEAD_REPORT(Node X)| S1
-	S1 -->|SEED_DEAD_VOTE(Node X)| S2
-	S2 -->|SEED_DEAD_VOTE(Node X)| S3
-	S1 -->|SEED_DEAD_COMMIT / ABORT| S2
-	S2 -->|SEED_DEAD_COMMIT / ABORT| S3
+	P2 -->|DEAD_REPORT Node X| S1
+	S1 -->|SEED_DEAD_VOTE Node X| S2
+	S2 -->|SEED_DEAD_VOTE Node X| S3
+	S1 -->|SEED_DEAD_COMMIT or ABORT| S2
+	S2 -->|SEED_DEAD_COMMIT or ABORT| S3
 ```
 
 Architecture details highlighted:
@@ -98,39 +106,39 @@ Architecture details highlighted:
 
 ```mermaid
 sequenceDiagram
-	autonumber
-	participant P2 as Peer B (Detector)
-	participant P3 as Peer C (Neighbor Witness)
-	participant P4 as Peer D (Neighbor Witness)
-	participant S1 as Seed 1
-	participant S2 as Seed 2
-	participant S3 as Seed 3
+  autonumber
+  participant P2 as "Peer B - Detector"
+  participant P3 as "Peer C - Neighbor Witness"
+  participant P4 as "Peer D - Neighbor Witness"
+  participant S1 as "Seed 1"
+  participant S2 as "Seed 2"
+  participant S3 as "Seed 3"
 
-	Note over P2,P4: Level 1: Peer-side suspicion consensus
-	P2->>P3: SUSPECT_REQ(Node X)
-	P2->>P4: SUSPECT_REQ(Node X)
-	P3-->>P2: SUSPECT_ACK(agree=true)
-	P4-->>P2: SUSPECT_ACK(agree=true)
+  Note over P2,P4: Level 1 - Peer-side suspicion consensus
+  P2->>P3: SUSPECT_REQ for Node X
+  P2->>P4: SUSPECT_REQ for Node X
+  P3-->>P2: SUSPECT_ACK agree=true
+  P4-->>P2: SUSPECT_ACK agree=true
 
-	alt Peer-level majority reached
-		P2->>S1: DEAD_REPORT(Node X, reporter=P2)
-		P2->>S2: DEAD_REPORT(Node X, reporter=P2)
-		Note over S1,S3: Level 2: Seed-side quorum consensus
-		S1->>S2: SEED_DEAD_VOTE(Node X)
-		S2->>S3: SEED_DEAD_VOTE(Node X)
-		S3-->>S1: Vote ACK
-		alt Quorum achieved
-			S1->>S2: SEED_DEAD_COMMIT(Node X)
-			S2->>S3: SEED_DEAD_COMMIT(Node X)
-			Note over S1,S3: Remove Node X from Peer List (PL)
-		else Quorum not achieved
-			S1->>S2: SEED_DEAD_ABORT(Node X)
-			S2->>S3: SEED_DEAD_ABORT(Node X)
-			Note over S1,S3: Keep Node X in PL
-		end
-	else Peer-level majority not reached
-		Note over P2,S3: No DEAD_REPORT sent; no seed-side action
-	end
+  alt Peer-level majority reached
+    P2->>S1: DEAD_REPORT Node X reporter=P2
+    P2->>S2: DEAD_REPORT Node X reporter=P2
+    Note over S1,S3: Level 2 - Seed-side quorum consensus
+    S1->>S2: SEED_DEAD_VOTE Node X
+    S2->>S3: SEED_DEAD_VOTE Node X
+    S3-->>S1: Vote ACK
+    alt Quorum achieved
+      S1->>S2: SEED_DEAD_COMMIT Node X
+      S2->>S3: SEED_DEAD_COMMIT Node X
+      Note over S1,S3: Remove Node X from Peer List
+    else Quorum not achieved
+      S1->>S2: SEED_DEAD_ABORT Node X
+      S2->>S3: SEED_DEAD_ABORT Node X
+      Note over S1,S3: Keep Node X in Peer List
+    end
+  else Peer-level majority not reached
+    Note over P2,S3: No DEAD_REPORT sent and no seed-side action
+  end
 ```
 
 Sequence details highlighted:
